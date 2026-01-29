@@ -6,7 +6,7 @@ class SlideEngine(object):
     def slide_to_images(self, slide_path: str, output_path: str):
         return self.pdf_to_images(slide_path, output_path)
 
-    def pdf_to_images(self, pdf_path, output_dir, dpi=300):
+    def pdf_to_images(self, pdf_path, output_dir, dpi=150):
         # Open the PDF file
         pdf_document = fitz.open(pdf_path)
 
@@ -19,7 +19,7 @@ class SlideEngine(object):
         pdf_document.close()
         return image_paths
 
-    def extract_one_page(self, pdf_document, page_num, output_path, dpi=300):
+    def extract_one_page(self, pdf_document, page_num, output_path, dpi=150):
         # Get the page
         page = pdf_document.load_page(page_num)
 
