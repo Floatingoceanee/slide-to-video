@@ -2,7 +2,7 @@ from __future__ import annotations
 import enum
 from multiprocessing import Manager
 
-from .utils import md5sum_of_file, exists, get_audio_duration
+from .utils import md5sum_of_file, exists, get_audio_duration, generate_srt_with_whisper
 import yaml
 from .slide_engine import SlideEngine
 from .script_engine import ScriptEngine
@@ -10,6 +10,11 @@ from .tts_engine import TTSEngine, create_engine
 from .video_engine import VideoEngine
 import concurrent.futures
 
+import json
+import os
+import logging
+ 
+logger = logging.getLogger(__name__)
 
 class TargetVoice:
     def __init__(self, *, model=None, audio=None):
@@ -98,21 +103,56 @@ class Task(object):
         self.tts_engine = tts_engine
         self.lock = lock
         self.delay = delay
-
+        self.srt_path = None  # 新增：存储生成的SRT路径
+    
     def build(self):
         video_file = f"{self.output_dir}/sub_paragraph_without_sound_{self.id}.mp4"
         audio_file = f"{self.output_dir}/sub_paragraph_{self.id}.wav"
+        srt_file = f"{self.output_dir}/sub_paragraph_{self.id}.srt"  # 新增：SRT文件路径
         final_video_file = f"{self.output_dir}/sub_paragraph_{self.id}.mp4"
 
-        if self.script.cached and self.slide.cached:
-            return
+        # if self.script.cached and self.slide.cached:
+        #     return
 
+        # if not self.script.cached:
+        #     if self.lock:
+        #         self.lock.acquire()
+        #     self.tts_engine.synthesize(self.script.content, audio_file)
+        #     if self.lock:
+        #         self.lock.release()
+ 
+        if self.script.cached and self.slide.cached:
+            # 如果缓存存在，检查SRT是否也存在
+            if os.path.exists(srt_file):
+                self.srt_path = srt_file
+            return
+ 
         if not self.script.cached:
             if self.lock:
                 self.lock.acquire()
+            
+            # 生成音频（使用原有逻辑）
             self.tts_engine.synthesize(self.script.content, audio_file)
+            
             if self.lock:
                 self.lock.release()
+            
+            # ✨ 新增：使用Whisper生成带时间戳的SRT
+            try:
+                whisper_model_size = self.tts_engine._config.get("whisper_model_size", "base")
+                generate_srt_with_whisper(
+                    audio_path=audio_file,
+                    output_srt_path=srt_file,
+                    model_size=whisper_model_size,  # 可配置
+                    device="auto"
+                )
+                self.srt_path = srt_file
+                logger.info(f"Generated SRT with Whisper for paragraph {self.id}")
+            except Exception as e:
+                logger.warning(f"Failed to generate SRT with Whisper: {e}")
+                # 失败时不中断流程，只是没有字幕
+                self.srt_path = None
+                
         video_engine = VideoEngine()
         if self.id != 1:
             video_engine.add_silence(audio_file, self.delay / 2, direction="start")
@@ -299,6 +339,8 @@ class Project:
         return [item.content for item in self.script_items]
 
     def build(self):
+        from .utils import merge_srt_files  # 延迟导入避免循环依赖
+
         model = self.config.get("model")
         assert model
         tts_engine = create_engine(model, self.config)
@@ -336,6 +378,61 @@ class Project:
             ]
             final_output = f"{self.output_dir}/output.mp4"
 
+        
+            # ✨ 新增：字幕相关配置
+            subtitle_mode = self.config.get("subtitle_mode", "soft")  # soft 或 hard
+            enable_subtitle = self.config.get("enable_subtitle", True)
+            
             video_engine.concatenate_videos(video_paths, final_output)
+            
+            # ✨ 新增：处理字幕
+            if enable_subtitle:
+                # 收集所有SRT文件和时间偏移
+                srt_files = []
+                time_offsets = []
+                current_time = 0.0
+                
+                from .utils import get_audio_duration, merge_srt_files
+                
+                for i, task in enumerate(tasks):
+                    if task.srt_path and os.path.exists(task.srt_path):
+                        srt_files.append(task.srt_path)
+                        time_offsets.append(current_time)
+                        
+                        # 计算下一个段落的起始时间
+                        audio_file = f"{self.output_dir}/sub_paragraph_{i + 1}.wav"
+                        if os.path.exists(audio_file):
+                            duration = get_audio_duration(audio_file)
+                            current_time += duration
+                
+                if srt_files:
+                    # 合并所有SRT文件
+                    merged_srt_path = f"{self.output_dir}/subtitles_merged.srt"
+                    merge_srt_files(srt_files, merged_srt_path, time_offsets)
+                    
+                    output_with_subs = f"{self.output_dir}/output_with_subs.mp4"
+                    # 根据模式生成最终视频
+                    if subtitle_mode == "soft":
+                        # 软字幕：快速，无画质损失
+                        video_engine.add_subtitle_to_video_soft(
+                            final_output, merged_srt_path, output_with_subs
+                        )
+                    else:
+                        # 硬字幕：烧录到画面
+                        video_engine.burn_subtitles_to_video(
+                            final_output, merged_srt_path, output_with_subs
+                        )
+                    
+                    # 替换原始输出
+                    os.replace(output_with_subs, final_output)
+                    print(f"Final video with {'soft' if subtitle_mode == 'soft' else 'hard'} subtitles saved to {final_output}")
+                else:
+                    print("No subtitle files generated, skipping subtitle processing")
+            else:
+                print("Subtitle generation disabled by config")
         else:
             print("All items are cached. No need to build the project.")
+        #     video_engine.concatenate_videos(video_paths, final_output)
+        # else:
+        #     print("All items are cached. No need to build the project.")
+

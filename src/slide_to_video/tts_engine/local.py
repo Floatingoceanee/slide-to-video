@@ -1,3 +1,5 @@
+import os
+
 from .base_engine import TTSEngine
 from .registery import register_engine
 
@@ -62,12 +64,31 @@ class LocalTTSEngine(TTSEngine):
         super().synthesize(text, output_path, format)
 
         print(f"Generating audio file for text: {text} at speed {self.speed}")
-        self.get_tts().tts_to_file(
+        # self.get_tts().tts_to_file(
+        #     text=text.strip(),
+        #     speaker_wav=self.voice_sample_path,
+        #     language=self.language,
+        #     file_path=output_path,
+        # )
+       
+        # 添加调试
+        print(f"DEBUG: Text = '{text.strip()}'", flush=True)
+        print(f"DEBUG: Voice sample path = '{self.voice_sample_path}'", flush=True)
+        print(f"DEBUG: Language = '{self.language}'", flush=True)
+        print(f"DEBUG: Output path = '{output_path}'", flush=True)
+        print(f"DEBUG: Voice file exists = {os.path.exists(self.voice_sample_path)}", flush=True)
+        
+        tts_instance = self.get_tts()
+        print(f"DEBUG: TTS instance type = {type(tts_instance)}")
+        print(f"DEBUG: About to call tts_to_file...", flush=True)
+        
+        tts_instance.tts_to_file(
             text=text.strip(),
             speaker_wav=self.voice_sample_path,
             language=self.language,
             file_path=output_path,
         )
+        
         print(f"Audio file generated and saved as {output_path}")
 
     def parallizable(self) -> bool:
@@ -90,11 +111,26 @@ class LocalTTSEngine(TTSEngine):
         # Get device
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Initializing TTS on device: {device}")
+        print(f"Model name: {self.model_name}")
 
-        # Initialize TTS with specified model
-        tts = TTS(self.model_name).to(device)
+        # # Initialize TTS with specified model
+        # tts = TTS(self.model_name).to(device)
+        # self.tts = tts
+        # return tts
+
+        # 添加调试
+        print("Step 1: Creating TTS instance...")
+        tts = TTS(self.model_name)
+        print("Step 2: TTS instance created")
+        
+        print("Step 3: Moving to device...")
+        tts = tts.to(device)
+        print("Step 4: TTS moved to device")
+        
         self.tts = tts
+        print("Step 5: TTS assigned to self.tts")
         return tts
+
 
     def cleanup(self) -> None:
         """Clean up TTS resources."""

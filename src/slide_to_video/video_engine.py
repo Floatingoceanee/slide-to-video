@@ -211,3 +211,91 @@ class VideoEngine(object):
             # Clean up the temporary file if it still exists
             if os.path.exists(temp_output_file_name):
                 os.remove(temp_output_file_name)
+
+    def add_subtitle_to_video_soft(
+        self, 
+        video_path: str, 
+        srt_path: str, 
+        output_path: str
+    ):
+        """
+        添加软字幕（可切换，无画质损失）
+        
+        Args:
+            video_path: 输入视频路径
+            srt_path: SRT字幕文件路径
+            output_path: 输出视频路径
+        """
+        print(f"Adding soft subtitle to {video_path}")
+        
+        input_video = ffmpeg.input(video_path)
+        input_subtitle = ffmpeg.input(srt_path)
+        
+        # 流复制：速度极快，无画质损失
+        # -c:s mov_text: MP4标准字幕格式
+        output = ffmpeg.output(
+            input_video,
+            input_subtitle,
+            output_path,
+            **{
+                'c:v': 'copy',      # 视频流复制
+                'c:a': 'copy',      # 音频流复制
+                'c:s': 'mov_text'   # 字幕流：MP4标准格式
+            },
+            movflags='+faststart'   # 优化网络播放
+        )
+        
+        run_ffmpeg_command(output)
+        print(f"Soft subtitle added to {output_path}")
+    
+    
+    def burn_subtitles_to_video(
+        self, 
+        video_path: str, 
+        srt_path: str, 
+        output_path: str,
+        font_size: int = 24
+    ):
+        """
+        烧录字幕到视频（硬字幕）
+        
+        Args:
+            video_path: 输入视频路径
+            srt_path: SRT字幕文件路径
+            output_path: 输出视频路径
+            font_size: 字体大小
+        """
+        print(f"Burning subtitles to {video_path}")
+        
+        # 将SRT路径转换为FFmpeg可用的格式（转义路径中的特殊字符）
+        import os
+        # abs_srt_path = os.path.abspath(srt_path)
+        rel_srt_path = os.path.relpath(srt_path)
+
+        if os.name == 'nt':
+            safe_srt_path = rel_srt_path.replace('\\', '/')
+        else:
+            safe_srt_path = rel_srt_path
+        
+        input_video = ffmpeg.input(video_path)
+        
+        # 使用subtitles滤镜
+        subtitle_filter = input_video.filter(
+            'subtitles',
+            safe_srt_path,
+            force_style=f'FontSize={font_size},PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,Alignment=2,MarginV=30'
+        )
+        
+        output = ffmpeg.output(
+            subtitle_filter,        # 视频流（带字幕）
+            input_video.audio,      # 音频流
+            output_path,
+            **{
+                'vcodec': 'libx264',
+                'acodec': 'aac',
+                'crf': '23'
+            }
+        )
+        
+        run_ffmpeg_command(output)
+        print(f"Subtitles burned to {output_path}")

@@ -1,5 +1,5 @@
 import os
-
+import shutil
 
 from .project import Project, ProjectConfig
 
@@ -14,7 +14,11 @@ def slide_to_video(
         project_file = f"{output_dir}/project.yaml"
         if not os.path.exists(project_file):
             # remove the directory
-            os.system(f"rm -rf {output_dir}")
+            # 修复：使用跨平台的 shutil.rmtree 替代 rm -rf
+            try:
+                shutil.rmtree(output_dir)
+            except Exception as e:
+                print(f"Warning: Could not remove directory {output_dir}: {e}")
     os.makedirs(output_dir, exist_ok=True)
 
     if "script_dict" in project_config:
