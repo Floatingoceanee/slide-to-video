@@ -39,7 +39,7 @@ class ScriptEngine:
         if script_path.endswith(".docx") or script_path.endswith(".doc"):
             return extract_text_from_docx(script_path)
         else:
-            with open(script_path, "r") as f:
+            with open(script_path, "r", encoding="utf-8") as f:
                 return f.read()
 
     def parse_script(self, script) -> Tuple[str, Optional[ScriptConfig]]:

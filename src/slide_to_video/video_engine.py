@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import List
+from typing import List, Dict, Optional
 import ffmpeg
 from .utils import par_execute
 from PIL import Image
@@ -250,42 +250,49 @@ class VideoEngine(object):
     
     
     def burn_subtitles_to_video(
-        self, 
-        video_path: str, 
-        srt_path: str, 
+        self,
+        video_path: str,
+        srt_path: str,
         output_path: str,
-        font_size: int = 24
+        style_config: Optional[Dict] = None
     ):
         """
         烧录字幕到视频（硬字幕）
-        
+
         Args:
             video_path: 输入视频路径
             srt_path: SRT字幕文件路径
             output_path: 输出视频路径
-            font_size: 字体大小
+            style_config: 字幕样式配置字典，None时使用默认样式
         """
+        from .subtitle_config import build_force_style_string, DEFAULT_SUBTITLE_STYLE
+
         print(f"Burning subtitles to {video_path}")
-        
+
+        # Use default style if not provided
+        if style_config is None:
+            style_config = DEFAULT_SUBTITLE_STYLE
+
+        # Build force_style string
+        force_style = build_force_style_string(style_config)
+
         # 将SRT路径转换为FFmpeg可用的格式（转义路径中的特殊字符）
-        import os
-        # abs_srt_path = os.path.abspath(srt_path)
         rel_srt_path = os.path.relpath(srt_path)
 
         if os.name == 'nt':
             safe_srt_path = rel_srt_path.replace('\\', '/')
         else:
             safe_srt_path = rel_srt_path
-        
+
         input_video = ffmpeg.input(video_path)
-        
-        # 使用subtitles滤镜
+
+        # 使用subtitles滤镜，应用自定义样式
         subtitle_filter = input_video.filter(
             'subtitles',
             safe_srt_path,
-            force_style=f'FontSize={font_size},PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,Alignment=2,MarginV=30'
+            force_style=force_style
         )
-        
+
         output = ffmpeg.output(
             subtitle_filter,        # 视频流（带字幕）
             input_video.audio,      # 音频流
@@ -296,6 +303,6 @@ class VideoEngine(object):
                 'crf': '23'
             }
         )
-        
+
         run_ffmpeg_command(output)
         print(f"Subtitles burned to {output_path}")

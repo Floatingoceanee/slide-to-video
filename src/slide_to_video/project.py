@@ -13,7 +13,8 @@ import concurrent.futures
 import json
 import os
 import logging
- 
+from typing import List, Optional
+
 logger = logging.getLogger(__name__)
 
 class TargetVoice:
@@ -49,7 +50,7 @@ class Item:
 
     @property
     def content(self):
-        with open(self.path, "r") as f:
+        with open(self.path, "r", encoding="utf-8") as f:
             return f.read()
 
     def __eq__(self, other: object):
@@ -274,7 +275,7 @@ class Project:
 
     def load_project_file(self, project_file):
         if exists(project_file):
-            with open(project_file, "r") as f:
+            with open(project_file, "r", encoding="utf-8") as f:
                 project_data = yaml.safe_load(f)
 
                 slide = project_data.get("slide")
@@ -338,9 +339,150 @@ class Project:
             return [item.content for item in self.script_items if not item.cached]
         return [item.content for item in self.script_items]
 
-    def build(self):
-        from .utils import merge_srt_files  # 延迟导入避免循环依赖
+    def prompt_user_confirmation(self, proofread_srt_path: str) -> bool:
+        """
+        Prompt user to check proofread subtitles.
 
+        - Shows subtitle file path
+        - Waits for user confirmation
+        - Returns whether to continue
+
+        Args:
+            proofread_srt_path: Path to the proofread SRT file
+
+        Returns:
+            True if user confirms, False otherwise
+        """
+        print("\n" + "=" * 60)
+        print("Subtitle Proofreading Complete")
+        print("=" * 60)
+        print(f"\nProofread subtitle file saved to:")
+        print(f"  {proofread_srt_path}")
+        print("\nPlease review the file to verify corrections.")
+        print("You can edit the file manually if needed.")
+        print("=" * 60)
+
+        while True:
+            response = input("\nContinue with video generation? [Y/n]: ").strip().lower()
+            if response in ['y', 'yes', '']:
+                return True
+            elif response in ['n', 'no']:
+                print("Aborting. You can re-run after making changes.")
+                return False
+            else:
+                print("Please enter 'y' or 'n'.")
+
+    def process_subtitles(
+        self,
+        tasks: List[Task],
+        video_engine: VideoEngine,
+        final_output: str
+    ) -> Optional[str]:
+        """
+        Handle subtitle generation and proofreading workflow.
+
+        - Generates subtitles_merged.srt
+        - Calls proofread module to generate subtitles_merged_proofread.srt
+        - If enable_interactive=True, waits for user confirmation
+        - Returns the final SRT path to use
+
+        Args:
+            tasks: List of completed Task objects
+            video_engine: VideoEngine instance
+            final_output: Path to the final output video
+
+        Returns:
+            Path to the final SRT file to use, or None if no subtitles
+        """
+        from .utils import get_audio_duration, merge_srt_files
+        from .proofread import proofread_srt
+        from .subtitle_config import get_subtitle_style
+
+        # Check if subtitles are enabled
+        enable_subtitle = self.config.get("enable_subtitle", True)
+        if not enable_subtitle:
+            print("Subtitle generation disabled by config")
+            return None
+
+        # Collect all SRT files and time offsets
+        srt_files = []
+        time_offsets = []
+        current_time = 0.0
+
+        for i, task in enumerate(tasks):
+            if task.srt_path and os.path.exists(task.srt_path):
+                srt_files.append(task.srt_path)
+
+                # Calculate time offset for current segment
+                start_silence = 0.0
+                if task.id != 1:
+                    start_silence = self.config["delay"] / 2
+
+                time_offsets.append(current_time + start_silence)
+
+                # Calculate next segment start time
+                audio_file = f"{self.output_dir}/sub_paragraph_{i + 1}.wav"
+                if os.path.exists(audio_file):
+                    duration = get_audio_duration(audio_file)
+                    current_time += duration
+
+        if not srt_files:
+            print("No subtitle files generated, skipping subtitle processing")
+            return None
+
+        # Merge all SRT files
+        merged_srt_path = f"{self.output_dir}/subtitles_merged.srt"
+        merge_srt_files(srt_files, merged_srt_path, time_offsets)
+        print(f"Merged subtitles saved to: {merged_srt_path}")
+
+        # Proofread the merged SRT
+        proofread_srt_path = f"{self.output_dir}/subtitles_merged_proofread.srt"
+        try:
+            proofread_srt(
+                srt_path=merged_srt_path,
+                script_path=self.script,
+                output_path=proofread_srt_path
+            )
+            print(f"Proofread subtitles saved to: {proofread_srt_path}")
+        except Exception as e:
+            logger.warning(f"Proofreading failed, using original subtitles: {e}")
+            proofread_srt_path = merged_srt_path
+
+        # Check for interactive mode
+        no_interactive = self.config.get("no_interactive", False)
+        enable_interactive = self.config.get("enable_interactive", True)
+
+        if enable_interactive and not no_interactive:
+            if not self.prompt_user_confirmation(proofread_srt_path):
+                raise RuntimeError("User cancelled the process")
+
+        # Get subtitle style for hard burn mode
+        subtitle_mode = self.config.get("subtitle_mode", "soft")
+        style_config = None
+
+        if subtitle_mode == "hard":
+            style_config = get_subtitle_style(self.config, no_interactive)
+            logger.info(f"Using subtitle style: {style_config}")
+
+        # Apply subtitles to video
+        output_with_subs = f"{self.output_dir}/output_with_subs.mp4"
+
+        if subtitle_mode == "soft":
+            video_engine.add_subtitle_to_video_soft(
+                final_output, proofread_srt_path, output_with_subs
+            )
+        else:
+            video_engine.burn_subtitles_to_video(
+                final_output, proofread_srt_path, output_with_subs, style_config
+            )
+
+        # Replace original output
+        os.replace(output_with_subs, final_output)
+        print(f"Final video with {'soft' if subtitle_mode == 'soft' else 'hard'} subtitles saved to {final_output}")
+
+        return proofread_srt_path
+
+    def build(self):
         model = self.config.get("model")
         assert model
         tts_engine = create_engine(model, self.config)
@@ -378,61 +520,10 @@ class Project:
             ]
             final_output = f"{self.output_dir}/output.mp4"
 
-        
-            # ✨ 新增：字幕相关配置
-            subtitle_mode = self.config.get("subtitle_mode", "soft")  # soft 或 hard
-            enable_subtitle = self.config.get("enable_subtitle", True)
-            
             video_engine.concatenate_videos(video_paths, final_output)
-            
-            # ✨ 新增：处理字幕
-            if enable_subtitle:
-                # 收集所有SRT文件和时间偏移
-                srt_files = []
-                time_offsets = []
-                current_time = 0.0
-                
-                from .utils import get_audio_duration, merge_srt_files
-                
-                for i, task in enumerate(tasks):
-                    if task.srt_path and os.path.exists(task.srt_path):
-                        srt_files.append(task.srt_path)
-                        time_offsets.append(current_time)
-                        
-                        # 计算下一个段落的起始时间
-                        audio_file = f"{self.output_dir}/sub_paragraph_{i + 1}.wav"
-                        if os.path.exists(audio_file):
-                            duration = get_audio_duration(audio_file)
-                            current_time += duration
-                
-                if srt_files:
-                    # 合并所有SRT文件
-                    merged_srt_path = f"{self.output_dir}/subtitles_merged.srt"
-                    merge_srt_files(srt_files, merged_srt_path, time_offsets)
-                    
-                    output_with_subs = f"{self.output_dir}/output_with_subs.mp4"
-                    # 根据模式生成最终视频
-                    if subtitle_mode == "soft":
-                        # 软字幕：快速，无画质损失
-                        video_engine.add_subtitle_to_video_soft(
-                            final_output, merged_srt_path, output_with_subs
-                        )
-                    else:
-                        # 硬字幕：烧录到画面
-                        video_engine.burn_subtitles_to_video(
-                            final_output, merged_srt_path, output_with_subs
-                        )
-                    
-                    # 替换原始输出
-                    os.replace(output_with_subs, final_output)
-                    print(f"Final video with {'soft' if subtitle_mode == 'soft' else 'hard'} subtitles saved to {final_output}")
-                else:
-                    print("No subtitle files generated, skipping subtitle processing")
-            else:
-                print("Subtitle generation disabled by config")
+
+            # Process subtitles with proofreading and interactive confirmation
+            self.process_subtitles(tasks, video_engine, final_output)
         else:
             print("All items are cached. No need to build the project.")
-        #     video_engine.concatenate_videos(video_paths, final_output)
-        # else:
-        #     print("All items are cached. No need to build the project.")
 

@@ -99,7 +99,7 @@ def cmd_test(args) -> None:
         if args.config:
             config = json.loads(args.config)
         elif args.config_file:
-            with open(args.config_file, "r") as f:
+            with open(args.config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
         else:
             print("Error: Must provide either --config or --config-file")
@@ -152,7 +152,7 @@ def cmd_validate_config(args) -> None:
         if args.config:
             config = json.loads(args.config)
         elif args.config_file:
-            with open(args.config_file, "r") as f:
+            with open(args.config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
         else:
             print("Error: Must provide either --config or --config-file")

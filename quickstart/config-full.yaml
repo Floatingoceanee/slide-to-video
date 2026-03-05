@@ -1,0 +1,65 @@
+# Full Featured Configuration
+# Demonstrates all available options including subtitle customization
+
+# === REQUIRED ===
+model: local
+slide: my_slides.pdf
+script: script.txt
+output_dir: output
+
+# === TTS SETTINGS ===
+voice: sample.mp3               # Voice sample for cloning
+language: en                    # en, es, fr, de, it, pt, pl, tr, ru, nl, cs, ar, zh-cn, hu, ko, ja, hi
+speech_speed: 1.0               # Speed multiplier (0.5-2.0)
+delay: 2.0                      # Seconds between slides
+
+# === SUBTITLE SETTINGS ===
+enable_subtitle: true           # Enable/disable subtitle generation
+subtitle_mode: hard             # "soft" (fast, toggleable) or "hard" (burned in)
+whisper_model_size: base        # tiny, base, small, medium, large
+no_interactive: false           # Set true to skip confirmation prompts
+
+# === SUBTITLE STYLE (hard mode only) ===
+# Customize the appearance of burned-in subtitles
+subtitle_style:
+  Fontname: Arial               # Font family (Arial, SimHei, Microsoft YaHei, etc.)
+  FontSize: 28                  # Font size in pixels
+  PrimaryColour: "&HFFFFFF&"    # Text color: white (BGR format: &HBBGGRR&)
+  OutlineColour: "&H000000&"    # Outline color: black
+  Outline: 2                    # Outline width
+  Shadow: 1                     # Shadow depth
+  Alignment: 2                  # Position: 2=bottom-center, 5=middle-center, 8=top-center
+  MarginV: 40                   # Vertical margin from bottom
+
+# === COMMON STYLE PRESETS ===
+# Uncomment one of these to use instead of custom style above:
+
+# --- Large text for presentations ---
+# subtitle_style:
+#   Fontname: Arial
+#   FontSize: 36
+#   PrimaryColour: "&HFFFFFF&"
+#   OutlineColour: "&H000000&"
+#   Outline: 3
+#   Alignment: 2
+#   MarginV: 60
+
+# --- Chinese subtitles ---
+# subtitle_style:
+#   Fontname: SimHei
+#   FontSize: 32
+#   PrimaryColour: "&HFFFFFF&"
+#   OutlineColour: "&H000000&"
+#   Outline: 2
+#   Alignment: 2
+#   MarginV: 50
+
+# --- Yellow text (classic style) ---
+# subtitle_style:
+#   Fontname: Arial
+#   FontSize: 28
+#   PrimaryColour: "&H00FFFF&"    # Yellow
+#   OutlineColour: "&H000000&"
+#   Outline: 2
+#   Alignment: 2
+#   MarginV: 40

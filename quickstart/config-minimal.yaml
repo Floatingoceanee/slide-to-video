@@ -1,0 +1,20 @@
+# Quick Start Configuration
+# Minimal config for getting started quickly
+
+# === REQUIRED ===
+model: local                    # Use local TTS engine
+slide: my_slides.pdf            # Your PDF slide deck
+script: script.txt              # Your narration script
+output_dir: output              # Where to save the output
+
+# Voice sample for cloning (10-30 seconds of your voice)
+voice: sample.mp3
+
+# === OPTIONAL (with defaults) ===
+# language: en                   # Language code
+# speech_speed: 1.0              # Speech speed multiplier
+# delay: 2.0                     # Delay between slides (seconds)
+# enable_subtitle: true          # Generate subtitles
+# subtitle_mode: soft            # "soft" or "hard"
+# whisper_model_size: base       # Whisper model size
+# no_interactive: false          # Whether skip interactive prompts - "false" = keep all interactive prompts

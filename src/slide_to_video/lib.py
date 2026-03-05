@@ -24,7 +24,7 @@ def slide_to_video(
     if "script_dict" in project_config:
         replace_dict = {}
         script_dict = project_config["script_dict"]
-        with open(script_dict, "r") as f:
+        with open(script_dict, "r", encoding="utf-8") as f:
             lines = f.readlines()
             for line in lines:
                 original_text, new_text = line.strip().split(":")
