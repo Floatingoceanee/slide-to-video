@@ -88,7 +88,7 @@ def test_item_content_property(mock_open):
     content = item.content
 
     assert content == "file content"
-    mock_open.assert_called_once_with("/test/path.txt", "r")
+    mock_open.assert_called_once_with("/test/path.txt", "r", encoding="utf-8")
     mock_file.read.assert_called_once()
 
 

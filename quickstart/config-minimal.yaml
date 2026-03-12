@@ -17,4 +17,14 @@ voice: sample.mp3
 # enable_subtitle: true          # Generate subtitles
 # subtitle_mode: soft            # "soft" or "hard"
 # whisper_model_size: base       # Whisper model size
-# no_interactive: false          # Whether skip interactive prompts - "false" = keep all interactive prompts
+# no_interactive: false          # Whether skip interactive prompts
+
+# === LLM PROOFREADING (optional) ===
+# To enable LLM-based subtitle proofreading with GLM API:
+# 1. Set environment variable: GLM_API_KEY=your_api_key
+# 2. Uncomment the following:
+# proofread:
+#   method: llm
+#   llm:
+#     model: glm-4-flash
+#     api_key: your_api_key_here  # Or set GLM_API_KEY environment variable

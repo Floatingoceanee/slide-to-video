@@ -1,0 +1,23 @@
+# Configuration for slide-to-video from-doc command
+# Usage: slide-to-video from-doc --config config_doc.yaml
+
+# Required
+doc_path: "insuremo/iTable-read-me/configuration_table.md"
+output_dir: "insuremo/output"
+
+# Optional - Image settings
+image_dir: "insuremo/iTable-read-me/image"  # Defaults to doc_path directory if not set
+max_slides: 30
+
+# Optional - LLM settings
+api_key: "cee70c873dda4cd48a5ae1a5e5fbdad8.s1NQeHAEgZXTCUGv"
+model: "glm-4-flash"
+
+# Optional - Output settings
+language: "en"
+page_width: 1920
+page_height: 1080
+last_slide_delay: 4.0
+
+# Optional - Processing
+skip_selection: false  # Set to true to skip LLM image selection

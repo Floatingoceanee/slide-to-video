@@ -437,12 +437,28 @@ class Project:
 
         # Proofread the merged SRT
         proofread_srt_path = f"{self.output_dir}/subtitles_merged_proofread.srt"
+        proofread_method = self.config.get("proofread", {}).get("method", "vocabulary")
+
         try:
-            proofread_srt(
-                srt_path=merged_srt_path,
-                script_path=self.script,
-                output_path=proofread_srt_path
-            )
+            if proofread_method == "llm":
+                # LLM-based proofreading
+                llm_config = self.config.get("proofread", {}).get("llm", {})
+                from .proofread import proofread_srt_with_llm
+                proofread_srt_with_llm(
+                    srt_path=merged_srt_path,
+                    script_path=self.script,
+                    output_path=proofread_srt_path,
+                    model=llm_config.get("model"),
+                    api_key=llm_config.get("api_key"),
+                    temperature=llm_config.get("temperature", 0.1),
+                )
+            else:
+                # Vocabulary-based proofreading (default)
+                proofread_srt(
+                    srt_path=merged_srt_path,
+                    script_path=self.script,
+                    output_path=proofread_srt_path
+                )
             print(f"Proofread subtitles saved to: {proofread_srt_path}")
         except Exception as e:
             logger.warning(f"Proofreading failed, using original subtitles: {e}")
@@ -491,6 +507,7 @@ class Project:
             manager = Manager()
             lock = manager.Lock()
         futures = []
+        print(f"DEBUG: Building {len(self.slide_items)} slides...")
         with concurrent.futures.ThreadPoolExecutor() as executor:
             tasks = []
             for i in range(len(self.slide_items)):
@@ -509,21 +526,29 @@ class Project:
         for future in futures:
             future.result()
 
+        print("DEBUG: All slide tasks completed")
         cached_script_list = [item.cached for item in self.script_items]
         cached_slide_list = [item.cached for item in self.slide_items]
+        print(f"DEBUG: cached_script_list = {cached_script_list}")
+        print(f"DEBUG: cached_slide_list = {cached_slide_list}")
 
         if not all(cached_script_list) or not all(cached_slide_list):
+            print("DEBUG: Starting video concatenation...")
             video_engine = VideoEngine()
             video_paths = [
                 f"{self.output_dir}/sub_paragraph_{i + 1}.mp4"
                 for i in range(len(self.slide_items))
             ]
             final_output = f"{self.output_dir}/output.mp4"
+            print(f"DEBUG: Video paths = {video_paths}")
+            print(f"DEBUG: Final output = {final_output}")
 
             video_engine.concatenate_videos(video_paths, final_output)
+            print("DEBUG: Video concatenation completed")
 
             # Process subtitles with proofreading and interactive confirmation
             self.process_subtitles(tasks, video_engine, final_output)
+            print("DEBUG: Subtitle processing completed")
         else:
             print("All items are cached. No need to build the project.")
 

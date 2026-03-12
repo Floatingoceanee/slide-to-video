@@ -4,6 +4,10 @@ Subtitle proofreading module.
 Compares Whisper-generated SRT files with the original script.txt
 to correct obvious errors (e.g., proper nouns) while preserving
 the original timestamp structure.
+
+Supports two proofreading methods:
+- vocabulary: Word-level matching with similarity scoring (default, no API needed)
+- llm: LLM-based proofreading using GLM API (requires GLM_API_KEY env var)
 """
 
 import re
@@ -253,3 +257,65 @@ def compare_srt_texts(original_path: str, proofread_path: str) -> List[Dict]:
             })
 
     return changes
+
+
+def proofread_srt_with_llm(
+    srt_path: str,
+    script_path: str,
+    output_path: str,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    temperature: float = 0.1,
+) -> str:
+    """
+    Proofread SRT file using LLM API (GLM).
+
+    Falls back to vocabulary-based proofreading if LLM API fails.
+
+    Args:
+        srt_path: Path to the input SRT file
+        script_path: Path to the script.txt reference file
+        output_path: Path for the output proofread SRT file
+        model: GLM model name (default: glm-4-flash)
+        api_key: GLM API key (default: from GLM_API_KEY env var)
+        temperature: Sampling temperature (0-1)
+
+    Returns:
+        Path to the output file
+    """
+    logger.info(f"LLM proofreading: {srt_path}")
+
+    # Extract script text
+    script_text = extract_script_text(script_path)
+
+    # Read SRT content
+    with open(srt_path, 'r', encoding='utf-8') as f:
+        srt_content = f.read()
+
+    try:
+        from .llm_proofread import get_glm_client
+
+        # Create GLM client
+        client = get_glm_client(
+            api_key=api_key,
+            model=model,
+            temperature=temperature,
+        )
+
+        # Call LLM API
+        proofread_content = client.proofread_srt(
+            script_text=script_text,
+            srt_content=srt_content,
+        )
+
+        # Write output
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(proofread_content)
+
+        logger.info(f"LLM proofread SRT saved to: {output_path}")
+        return output_path
+
+    except Exception as e:
+        logger.warning(f"LLM proofreading failed, falling back to vocabulary method: {e}")
+        # Fallback to vocabulary-based proofreading
+        return proofread_srt(srt_path, script_path, output_path)

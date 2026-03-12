@@ -19,6 +19,14 @@ subtitle_mode: hard             # "soft" (fast, toggleable) or "hard" (burned in
 whisper_model_size: base        # tiny, base, small, medium, large
 no_interactive: false           # Set true to skip confirmation prompts
 
+# === SUBTITLE PROOFREADING ===
+proofread:
+  method: llm                   # "vocabulary" (word matching) or "llm" (GLM API)
+  llm:
+    model: glm-4-flash          # GLM model: glm-4-flash (free), glm-4-plus, glm-4
+    api_key: your_api_key_here  # Or set GLM_API_KEY environment variable
+    temperature: 0.1            # Lower = more deterministic (0-1)
+
 # === SUBTITLE STYLE (hard mode only) ===
 # Customize the appearance of burned-in subtitles
 subtitle_style:

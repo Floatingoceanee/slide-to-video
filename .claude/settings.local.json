@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(robocopy:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(dir /s /b C:Usersamy.wangAppDataLocaltts 2)",
+      "Bash(findstr:*)",
+      "Bash(pip show:*)",
+      "Bash(ls:*)",
+      "WebSearch",
+      "Bash(slide-to-video:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
