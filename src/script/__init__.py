@@ -142,6 +142,11 @@ def generate_from_doc(
         "--skip-selection",
         help="Skip LLM image selection, use all images",
     ),
+    target_word_count: Optional[int] = typer.Option(
+        None,
+        "--target-word-count",
+        help="Target word count for entire script (null = no limit)",
+    ),
     config: Optional[str] = typer.Option(None, help="Path to yaml config file (default: config_doc.yaml)"),
     ctx: typer.Context = typer.Option(None),
 ):
@@ -195,6 +200,9 @@ def generate_from_doc(
         raw_config["last_slide_delay"] = 4.0
     if "skip_selection" not in raw_config or raw_config["skip_selection"] is None:
         raw_config["skip_selection"] = False
+    # target_word_count defaults to None (no limit)
+    if "target_word_count" not in raw_config:
+        raw_config["target_word_count"] = None
 
     # Validate required fields
     if not raw_config.get("doc_path"):
@@ -208,14 +216,16 @@ def generate_from_doc(
     doc_path = raw_config["doc_path"]
     image_dir = raw_config.get("image_dir")
     output_dir = raw_config["output_dir"]
-    api_key = raw_config.get("api_key")
-    model = raw_config["model"]
+    # Support both top-level api_key and nested llm.api_key
+    api_key = raw_config.get("api_key") or raw_config.get("llm", {}).get("api_key")
+    model = raw_config.get("model") or raw_config.get("llm", {}).get("model")
     max_slides = raw_config["max_slides"]
     language = raw_config["language"]
     page_width = raw_config["page_width"]
     page_height = raw_config["page_height"]
     last_slide_delay = raw_config["last_slide_delay"]
     skip_selection = raw_config["skip_selection"]
+    target_word_count = raw_config.get("target_word_count")
 
     # Resolve paths
     doc_path = Path(doc_path).resolve()
@@ -318,6 +328,7 @@ def generate_from_doc(
             model=model,
             language=language,
             last_slide_delay=last_slide_delay,
+            target_word_count=target_word_count,
             progress_callback=on_progress,
         )
 

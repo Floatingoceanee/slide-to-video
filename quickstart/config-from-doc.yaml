@@ -1,0 +1,93 @@
+# Configuration for slide-to-video from-doc command
+# Converts Markdown documentation to slide PDF and narration script
+# Usage: slide-to-video from-doc --config config-from-doc.yaml
+
+# === REQUIRED ===
+doc_path: "docs/guide.md"              # Path to your Markdown documentation
+output_dir: "output"                   # Output directory
+
+# === OPTIONAL - IMAGE SETTINGS ===
+image_dir: "docs/images"               # Image directory (defaults to doc_path directory)
+max_slides: 30                       # Maximum number of slides to generate
+
+# === LLM CONFIGURATION ===
+# Choose your LLM provider for image selection and script generation
+llm:
+  provider: glm                   # glm, claude, qwen, kimi, ollama, openai-compatible
+  model: glm-4-flash               # Model depends on provider
+  # api_key: xxx               # Optional, uses env var if not set
+  # api_url: null                  # Optional, uses provider's default endpoint
+  temperature: 0.7             # Higher = more creative, lower = more deterministic
+
+# === OUTPUT SETTINGS ===
+language: en                      # Script language: en, zh-cn, es, fr, de, it, pt, pl, tr, ru
+page_width: 1920                  # PDF page width in pixels
+page_height: 1080                 # PDF page height in pixels
+last_slide_delay: 4.0           # Delay after last slide in seconds
+
+# === SCRIPT GENERATION SETTINGS ===
+target_word_count: null         # Target word count for entire script (null = no limit)
+                              # When set, each slide will be aware of previous content
+                              # and will stay within the word budget.
+
+# === PROCESSING OPTIONS ===
+skip_selection: false           # Set to true to skip LLM image selection
+
+# ============================================================
+# ALTERNATIVE LLM PROVIDER EXAMPLES (uncomment to use)
+# LLM provider: glm, claude, qwen, kimi, ollama, openai-compatible
+# ============================================================
+
+# --- GLM (智谱AI) - Free tier available ---
+# llm:
+#   provider: glm
+#   model: glm-4-flash
+#   # Uses GLM_API_KEY environment variable
+# api_key: xxx                 # Uses GLM_API_KEY env var
+
+# --- Claude (Anthropic) - High quality scripts ---
+# llm:
+#   provider: claude
+#   model: claude-3-5-sonnet-20241022
+#   # Uses ANTHROPIC_API_KEY environment variable
+# api_key: sk-ant-xxx          # Uses ANTHROPIC_API_KEY env var
+
+# --- Qwen (通义千问) ---
+# llm:
+#   provider: qwen
+#   model: qwen-turbo
+#   # Uses DASHSCOPE_API_KEY environment variable
+# api_key: xxx                 # Uses DASHSCOPE_API_KEY env var
+
+# --- Kimi (月之暗面) ---
+# llm:
+#   provider: kimi
+#   model: moonshot-v1-8k
+#   # Uses MOONSHOT_API_KEY environment variable
+# api_key: xxx                 # Uses MOONSHOT_API_KEY env var
+
+# --- Ollama (Local Models - No API Key Required) ---
+# llm:
+#   provider: ollama
+#   model: llama3.2
+#   api_url: http://localhost:11434
+#   # No api_key needed - make sure Ollama is running: ollama serve
+
+# --- OpenAI-Compatible (Generic API) ---
+# llm:
+#   provider: openai-compatible
+#   model: gpt-4o
+#   api_url: https://api.example.com/v1/chat/completions
+#   api_key: your_api_key_here
+
+# ============================================================
+# WORKFLOW
+# ============================================================
+#
+# Step 1: Generate slides and script
+#   slide-to-video from-doc --config config-from-doc.yaml
+#
+# Step 2: Generate video with narration
+#   slide-to-video --config output/config.yaml
+#
+# That's it! Your video is ready at output/output.mp4
