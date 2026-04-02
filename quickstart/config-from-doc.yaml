@@ -26,7 +26,7 @@ page_height: 1080                 # PDF page height in pixels
 last_slide_delay: 4.0           # Delay after last slide in seconds
 
 # === SCRIPT GENERATION SETTINGS ===
-target_word_count: null         # Target word count for entire script (null = no limit)
+target_word_count: 150         # Target word count for entire script (null = no limit)
                               # When set, each slide will be aware of previous content
                               # and will stay within the word budget.
 

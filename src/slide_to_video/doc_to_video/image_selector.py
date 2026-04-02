@@ -1,13 +1,13 @@
 """
 Image selector using LLM.
 
-Uses GLM API to analyze and select the most important images
+Uses LLM API to analyze and select the most important images
 from documentation that demonstrate core system functionality.
 """
 
 import json
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,8 @@ def select_important_images(
     images: List[Dict],
     doc_content: str,
     max_count: int = 30,
+    llm_config: Optional[Dict[str, Any]] = None,
+    # Legacy parameters for backward compatibility
     api_key: Optional[str] = None,
     model: str = "glm-4-flash",
 ) -> List[Dict]:
@@ -26,8 +28,9 @@ def select_important_images(
         images: List of image dicts from extract_image_references()
         doc_content: Full document content for context
         max_count: Maximum number of images to select
-        api_key: GLM API key (or use GLM_API_KEY env var)
-        model: LLM model name
+        llm_config: LLM configuration dict with 'provider', 'model', 'api_key', etc.
+        api_key: (Legacy) API key, used if llm_config not provided
+        model: (Legacy) Model name, used if llm_config not provided
 
     Returns:
         Selected images list (subset of input), ordered by importance
@@ -57,7 +60,7 @@ def select_important_images(
     # Use LLM to select important images
     try:
         selected_indices = _call_llm_for_selection(
-            valid_images, doc_content, max_count, api_key, model
+            valid_images, doc_content, max_count, llm_config, api_key, model
         )
     except Exception as e:
         logger.error(f"LLM selection failed: {e}. Returning first {max_count} images.")
@@ -77,6 +80,7 @@ def _call_llm_for_selection(
     images: List[Dict],
     doc_content: str,
     max_count: int,
+    llm_config: Optional[Dict[str, Any]],
     api_key: Optional[str],
     model: str,
 ) -> List[int]:
@@ -86,8 +90,25 @@ def _call_llm_for_selection(
     Returns:
         List of selected image indices (0-based)
     """
-    # Import GLM client
-    from ..llm_proofread.glm_client import GLMClient
+    from ..llm_client import create_llm_client
+
+    # Create LLM client from config or legacy parameters
+    if llm_config:
+        client = create_llm_client(
+            provider=llm_config.get("provider", "glm"),
+            model=llm_config.get("model"),
+            api_key=llm_config.get("api_key"),
+            api_url=llm_config.get("api_url"),
+            temperature=llm_config.get("temperature", 0.3),
+        )
+    else:
+        # Legacy mode: use GLM client directly
+        client = create_llm_client(
+            provider="glm",
+            model=model,
+            api_key=api_key,
+            temperature=0.3,
+        )
 
     # Build image list description for the prompt
     image_list = []
@@ -128,43 +149,9 @@ def _call_llm_for_selection(
 **Output Format**: Return ONLY a JSON array of selected image indices.
 Example: [0, 2, 5, 7, 10]"""
 
-    # Create GLM client and call API
-    client = GLMClient(api_key=api_key, model=model, temperature=0.3)
+    logger.info(f"Calling {client.provider} API for image selection (model={client.model})...")
 
-    try:
-        import requests
-    except ImportError:
-        raise RuntimeError("requests library required. Install with: pip install requests")
-
-    headers = {
-        "Authorization": f"Bearer {client.api_key}",
-        "Content-Type": "application/json",
-    }
-
-    payload = {
-        "model": client.model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": client.temperature,
-        "top_p": 0.7,
-    }
-
-    logger.info(f"Calling GLM API for image selection (model={model})...")
-
-    response = requests.post(
-        client.api_url,
-        headers=headers,
-        json=payload,
-        timeout=120,
-    )
-    response.raise_for_status()
-
-    data = response.json()
-
-    # Extract content from response
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError) as e:
-        raise ValueError(f"Invalid API response: {e}")
+    content = client.chat(prompt, temperature=0.3)
 
     # Parse JSON from response
     indices = _parse_json_indices(content, len(images))
@@ -187,6 +174,8 @@ def _parse_json_indices(content: str, max_index: int) -> List[int]:
     Returns:
         List of valid indices
     """
+    import re
+
     # Try direct JSON parse first
     content = content.strip()
 
@@ -206,7 +195,6 @@ def _parse_json_indices(content: str, max_index: int) -> List[int]:
         content = "\n".join(cleaned_lines).strip()
 
     # Try to find JSON array pattern
-    import re
     json_match = re.search(r'\[[\d\s,]+\]', content)
     if json_match:
         content = json_match.group(0)

@@ -1,8 +1,8 @@
 # Quick Start Configuration
-# Minimal config for getting started quickly
+# Minimal config for PDF slides → video
 
 # === REQUIRED ===
-model: local                    # Use local TTS engine
+model: local                    # TTS engine: local, playht, openai-tts
 slide: my_slides.pdf            # Your PDF slide deck
 script: script.txt              # Your narration script
 output_dir: output              # Where to save the output
@@ -11,20 +11,22 @@ output_dir: output              # Where to save the output
 voice: sample.mp3
 
 # === OPTIONAL (with defaults) ===
-# language: en                   # Language code
-# speech_speed: 1.0              # Speech speed multiplier
+# language: en                   # Language code (en, zh-cn, es, fr, etc.)
+# speech_speed: 1.0              # Speech speed multiplier (0.5-2.0)
 # delay: 2.0                     # Delay between slides (seconds)
-# enable_subtitle: true          # Generate subtitles
-# subtitle_mode: soft            # "soft" or "hard"
-# whisper_model_size: base       # Whisper model size
-# no_interactive: false          # Whether skip interactive prompts
+# enable_subtitle: true           # Generate subtitles
+# subtitle_mode: soft             # "soft" (muxed) or "hard" (burned in)
+# whisper_model_size: base        # tiny, base, small, medium, large
+# no_interactive: false           # Skip all interactive prompts
 
 # === LLM PROOFREADING (optional) ===
-# To enable LLM-based subtitle proofreading with GLM API:
-# 1. Set environment variable: GLM_API_KEY=your_api_key
+# To enable LLM-based subtitle proofreading:
+# 1. Set environment variable: export GLM_API_KEY=your_api_key
 # 2. Uncomment the following:
+#
 # proofread:
 #   method: llm
 #   llm:
+#     provider: glm
 #     model: glm-4-flash
-#     api_key: your_api_key_here  # Or set GLM_API_KEY environment variable
+#     temperature: 0.1

@@ -11,7 +11,7 @@ Supports two proofreading methods:
 """
 
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -263,12 +263,14 @@ def proofread_srt_with_llm(
     srt_path: str,
     script_path: str,
     output_path: str,
+    llm_config: Optional[Dict[str, Any]] = None,
+    # Legacy parameters for backward compatibility
     model: Optional[str] = None,
     api_key: Optional[str] = None,
     temperature: float = 0.1,
 ) -> str:
     """
-    Proofread SRT file using LLM API (GLM).
+    Proofread SRT file using LLM API.
 
     Falls back to vocabulary-based proofreading if LLM API fails.
 
@@ -276,8 +278,9 @@ def proofread_srt_with_llm(
         srt_path: Path to the input SRT file
         script_path: Path to the script.txt reference file
         output_path: Path for the output proofread SRT file
-        model: GLM model name (default: glm-4-flash)
-        api_key: GLM API key (default: from GLM_API_KEY env var)
+        llm_config: LLM configuration dict with 'provider', 'model', 'api_key', etc.
+        model: (Legacy) GLM model name (default: glm-4-flash)
+        api_key: (Legacy) GLM API key (default: from GLM_API_KEY env var)
         temperature: Sampling temperature (0-1)
 
     Returns:
@@ -293,21 +296,30 @@ def proofread_srt_with_llm(
         srt_content = f.read()
 
     try:
-        from .llm_proofread import get_glm_client
+        from .llm_client import create_llm_client
 
-        # Create GLM client
-        client = get_glm_client(
-            api_key=api_key,
-            model=model,
-            temperature=temperature,
-        )
+        # Create LLM client from config or legacy parameters
+        if llm_config:
+            client = create_llm_client(
+                provider=llm_config.get("provider", "glm"),
+                model=llm_config.get("model"),
+                api_key=llm_config.get("api_key"),
+                temperature=llm_config.get("temperature", 0.1),
+            )
+        else:
+            # Legacy mode: use GLM client directly
+            client = create_llm_client(
+                provider="glm",
+                model=model,
+                api_key=api_key,
+                temperature=temperature,
+            )
+
+        # Create the proofreading prompt
+        prompt = _create_proofread_prompt(script_text, srt_content)
 
         # Call LLM API
-        proofread_content = client.proofread_srt(
-            script_text=script_text,
-            srt_content=srt_content,
-        )
-
+        proofread_content = client.chat(prompt, temperature=temperature)
         # Write output
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(proofread_content)
@@ -319,3 +331,35 @@ def proofread_srt_with_llm(
         logger.warning(f"LLM proofreading failed, falling back to vocabulary method: {e}")
         # Fallback to vocabulary-based proofreading
         return proofread_srt(srt_path, script_path, output_path)
+
+
+def _create_proofread_prompt(script_text: str, srt_content: str) -> str:
+    """
+    Create the prompt for LLM proofreading.
+
+    Args:
+        script_text: Original script text (reference)
+        srt_content: SRT content to proofread
+
+    Returns:
+        Formatted prompt string
+    """
+    return f"""You are a subtitle proofreading assistant.
+
+**Task**: Correct speech-to-text errors in the SRT file using the original script as reference.
+
+**Rules**:
+1. Keep ALL timestamps EXACTLY as they are
+2. Keep the segment structure (do not merge or split segments)
+3. Only fix words that are clearly recognition errors
+4. Match the style and vocabulary of the original script
+5. Preserve punctuation style from the SRT (not the script)
+6. Return ONLY the corrected SRT content, nothing else
+
+**Original Script** (reference for correct wording):
+{script_text}
+
+**SRT to Proofread**:
+{srt_content}
+
+Return the corrected SRT:"""

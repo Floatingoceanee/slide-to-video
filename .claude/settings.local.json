@@ -13,7 +13,12 @@
       "Bash(ls:*)",
       "WebSearch",
       "Bash(slide-to-video:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git -c user.email=\"2117098351@qq.com\" -c user.name=\"Floatingoceanee\" commit -m \"$\\(cat <<''EOF''\nAdd doc-to-video and LLM proofreading features\n\n- Add doc_to_video module for converting documents to video slides\n- Add llm_proofread module for AI-powered subtitle proofreading\n- Add new config templates and scripts\n- Update CLI with enhanced subtitle options\n- Improve proofreading with LLM integration\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(pytest test/ -- pytest.ini:*)",
+      "Bash(git commit:*)",
+      "Bash(git -c user.email=\"2117098351@qq.com\" -c user.name=\"Floatingoceanee\" push origin add-subtitle:doc-to-slide)"
     ]
   }
 }

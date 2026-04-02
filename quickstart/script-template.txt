@@ -1,8 +1,12 @@
 NEWSLIDE
 Welcome to this presentation. This is the narration for slide 1.
+===
+#delay: 4.0
 
 NEWSLIDE
 Now we move on to the second slide. Here we discuss the main points.
 
 NEWSLIDE
 Finally, we conclude with slide 3. Thank you for watching!
+===
+#delay: 4.0

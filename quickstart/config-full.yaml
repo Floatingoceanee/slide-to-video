@@ -1,14 +1,14 @@
 # Full Featured Configuration
-# Demonstrates all available options including subtitle customization
+# Demonstrates all available options including multi-LLM support
 
 # === REQUIRED ===
-model: local
-slide: my_slides.pdf
-script: script.txt
-output_dir: output
+model: local                    # TTS engine: local, playht, openai-tts
+slide: my_slides.pdf            # PDF slide deck
+script: script.txt              # Narration script
+output_dir: output              # Output directory
 
 # === TTS SETTINGS ===
-voice: sample.mp3               # Voice sample for cloning
+voice: sample.mp3               # Voice sample for cloning (local engine)
 language: en                    # en, es, fr, de, it, pt, pl, tr, ru, nl, cs, ar, zh-cn, hu, ko, ja, hi
 speech_speed: 1.0               # Speed multiplier (0.5-2.0)
 delay: 2.0                      # Seconds between slides
@@ -21,26 +21,80 @@ no_interactive: false           # Set true to skip confirmation prompts
 
 # === SUBTITLE PROOFREADING ===
 proofread:
-  method: llm                   # "vocabulary" (word matching) or "llm" (GLM API)
+  method: llm                   # "vocabulary" (word matching) or "llm" (LLM API)
   llm:
-    model: glm-4-flash          # GLM model: glm-4-flash (free), glm-4-plus, glm-4
-    api_key: your_api_key_here  # Or set GLM_API_KEY environment variable
+    provider: glm               # glm, claude, qwen, kimi, ollama, openai-compatible
+    model: glm-4-flash          # Model name depends on provider
+    # api_key: xxx               # Optional, uses env var if not set
     temperature: 0.1            # Lower = more deterministic (0-1)
 
 # === SUBTITLE STYLE (hard mode only) ===
-# Customize the appearance of burned-in subtitles
 subtitle_style:
-  Fontname: Arial               # Font family (Arial, SimHei, Microsoft YaHei, etc.)
+  Fontname: Arial               # Font family
   FontSize: 28                  # Font size in pixels
-  PrimaryColour: "&HFFFFFF&"    # Text color: white (BGR format: &HBBGGRR&)
+  PrimaryColour: "&HFFFFFF&"    # Text color: white (BGR format)
   OutlineColour: "&H000000&"    # Outline color: black
   Outline: 2                    # Outline width
   Shadow: 1                     # Shadow depth
-  Alignment: 2                  # Position: 2=bottom-center, 5=middle-center, 8=top-center
-  MarginV: 40                   # Vertical margin from bottom
+  Alignment: 2                  # Position: 2=bottom-center
+  MarginV: 40                   # Vertical margin
 
-# === COMMON STYLE PRESETS ===
-# Uncomment one of these to use instead of custom style above:
+# ============================================================
+# ALTERNATIVE LLM PROVIDER EXAMPLES (uncomment to use)
+# ============================================================
+
+# --- GLM (智谱AI) - Free tier available ---
+# proofread:
+#   method: llm
+#   llm:
+#     provider: glm
+#     model: glm-4-flash
+#     # Uses GLM_API_KEY environment variable
+
+# --- Claude (Anthropic) ---
+# proofread:
+#   method: llm
+#   llm:
+#     provider: claude
+#     model: claude-3-5-sonnet-20241022
+#     # Uses ANTHROPIC_API_KEY environment variable
+
+# --- Qwen (通义千问) ---
+# proofread:
+#   method: llm
+#   llm:
+#     provider: qwen
+#     model: qwen-turbo
+#     # Uses DASHSCOPE_API_KEY environment variable
+
+# --- Kimi (月之暗面) ---
+# proofread:
+#   method: llm
+#   llm:
+#     provider: kimi
+#     model: moonshot-v1-8k
+#     # Uses MOONSHOT_API_KEY environment variable
+
+# --- Ollama (Local Models - No API Key) ---
+# proofread:
+#   method: llm
+#   llm:
+#     provider: ollama
+#     model: llama3.2
+#     api_url: http://localhost:11434
+
+# --- OpenAI-Compatible (Generic API) ---
+# proofread:
+#   method: llm
+#   llm:
+#     provider: openai-compatible
+#     model: gpt-4o
+#     api_url: https://api.example.com/v1/chat/completions
+#     api_key: xxx
+
+# ============================================================
+# SUBTITLE STYLE PRESETS (uncomment to use)
+# ============================================================
 
 # --- Large text for presentations ---
 # subtitle_style:
