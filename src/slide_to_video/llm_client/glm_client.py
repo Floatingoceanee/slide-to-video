@@ -4,6 +4,7 @@ GLM (智谱AI) LLM client implementation.
 
 import os
 import logging
+import time
 from typing import Optional
 
 from .base import LLMClient
@@ -98,13 +99,54 @@ class GLMClient(LLMClient):
 
         logger.debug(f"Calling GLM API (model={self._model})...")
 
-        response = requests.post(
-            self._api_url,
-            headers=headers,
-            json=payload,
-            timeout=120,
-        )
-        response.raise_for_status()
+        # Retry logic for SSL errors and connection issues
+        max_retries = 3
+        retry_delay = 1  # initial delay in seconds
+
+        for attempt in range(max_retries):
+            try:
+                # Bypass proxy on retry to avoid local proxy SSL issues
+                proxies = {"http": None, "https": None} if attempt > 0 else None
+                verify_ssl = attempt == 0  # Only verify SSL on first attempt
+                response = requests.post(
+                    self._api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=120,
+                    verify=verify_ssl,
+                    proxies=proxies,
+                )
+                if proxies is not None:
+                    logger.info("Bypassing proxy for direct connection")
+                response.raise_for_status()
+                break  # Success, exit retry loop
+            except requests.exceptions.SSLError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"SSL error on attempt {attempt + 1}/{max_retries}: {e}")
+                    logger.info(f"Retrying with proxy bypass and SSL disabled in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f"SSL error after {max_retries} attempts: {e}")
+                    raise
+            except requests.exceptions.ConnectionError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Connection error on attempt {attempt + 1}/{max_retries}: {e}")
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(f"Connection error after {max_retries} attempts: {e}")
+                    raise
+            except requests.exceptions.Timeout as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Timeout on attempt {attempt + 1}/{max_retries}: {e}")
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(f"Timeout after {max_retries} attempts: {e}")
+                    raise
 
         data = response.json()
 

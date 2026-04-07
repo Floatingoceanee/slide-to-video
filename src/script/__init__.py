@@ -89,6 +89,15 @@ def generate(
     config: Optional[str] = typer.Option(None, help="Path to yaml config file"),
     ctx: typer.Context = typer.Option(None),
 ):
+    """Generate video from PDF slides and narration script.
+
+    Converts a PDF slide deck with a narration script into a video
+    with TTS audio and subtitles (soft or hard).
+
+    Example:
+        slide-to-video --config config.yaml
+        slide-to-video generate --config config.yaml
+    """
     # Load the project config from file first (if provided)
     if config:
         with open(config, "r", encoding="utf-8") as f:

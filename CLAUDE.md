@@ -183,6 +183,8 @@ After generation, the output directory contains:
 Supported: en, es, fr, de, it, pt, pl, tr, ru, nl, cs, ar, zh-cn, hu, ko, ja, hi
 
 ## Dependencies
-- **Core**: PyMuPDF (PDF), ffmpeg-python (video), coqui-tts (local TTS), pydub (audio), faster-whisper (subtitles)
+- **Core**: PyMuPDF (PDF), ffmpeg-python (video), coqui-tts (local TTS), pydub (audio), faster-whisper (subtitles), Pillow (image resize)
+- **TTS runtime**: torchaudio (Coqui TTS dependency), transformers<5.1 (5.x breaks Coqui TTS)
+- **System**: FFmpeg with libass (required for hard subtitles — `brew install ffmpeg-full` on macOS)
 - **CLI**: Typer, Click
 - **Dev**: pytest, pyright, ruff

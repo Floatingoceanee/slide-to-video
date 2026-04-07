@@ -16,11 +16,17 @@ A powerful tool that converts slide decks and documentation into narrated videos
 
 ## Installation
 
-Tested on Ubuntu 20.04 and Windows.
+Tested on Ubuntu 20.04, macOS, and Windows.
 
-1. **Install `ffmpeg`**:
-   - Ubuntu: `sudo apt-get install ffmpeg`
-   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH
+1. **Install FFmpeg (with libass for hard subtitles)**:
+
+   > **Important**: The standard Homebrew/apt package may not include `libass`, which is required for the `subtitles` filter (hard subtitle mode).
+
+   - **macOS**: `brew install ffmpeg-full` (Homebrew's `ffmpeg` lacks libass)
+   - **Ubuntu**: `sudo apt-get install ffmpeg libass-dev`
+   - **Windows**: Download a full build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (includes libass) and add to PATH
+
+   Verify: `ffmpeg -filters | grep subtitles` should show `subtitles`.
 
 2. **Install Python (>=3.9 and <=3.11)** and `pip` if you haven't already.
 
@@ -30,6 +36,8 @@ Tested on Ubuntu 20.04 and Windows.
    cd slide-to-video
    pip install .
    ```
+
+   > **macOS 一键部署**: `bash tools/setup_mac.sh` (自动安装 ffmpeg-full、创建 venv、安装依赖)
 
 4. **Verify Installation**:
    ```bash
@@ -458,8 +466,16 @@ The tool caches generated content in `project.yaml`:
 
 ### "ffmpeg not found"
 Install ffmpeg:
-- Ubuntu: `sudo apt-get install ffmpeg`
-- Windows: Download from ffmpeg.org and add to PATH
+- macOS: `brew install ffmpeg-full`
+- Ubuntu: `sudo apt-get install ffmpeg libass-dev`
+- Windows: Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (full build with libass)
+
+### "No option name near" / "Error parsing filterchain" (hard subtitles)
+This usually means FFmpeg was compiled **without libass**:
+```bash
+ffmpeg -filters | grep subtitles
+# If empty, reinstall FFmpeg with libass support
+```
 
 ### "CUDA out of memory"
 Use a smaller Whisper model:

@@ -22,7 +22,7 @@ fi
 # 2. 安装 FFmpeg
 echo ""
 echo "安装 FFmpeg..."
-brew install ffmpeg
+brew install ffmpeg-full
 
 # 3. 设置模型目录
 echo ""

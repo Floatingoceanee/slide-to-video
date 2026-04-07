@@ -6,6 +6,7 @@ including font, color, position, and other visual parameters.
 """
 
 from typing import Dict, Optional
+import sys
 import logging
 
 logger = logging.getLogger(__name__)
@@ -76,14 +77,7 @@ def build_force_style_string(style_config: Dict) -> str:
         style_config = DEFAULT_SUBTITLE_STYLE
 
     # Filter out None values and build the string
-    style_parts = []
-    for key, value in style_config.items():
-        if value is not None:
-            # Handle color values that need to be quoted
-            if isinstance(value, str) and value.startswith('&'):
-                style_parts.append(f"{key}={value}")
-            else:
-                style_parts.append(f"{key}={value}")
+    style_parts = [f"{key}={value}" for key, value in style_config.items() if value is not None]
 
     return ','.join(style_parts)
 
@@ -121,7 +115,18 @@ def prompt_subtitle_style() -> Dict:
     ]
 
     for param_name, param_desc, default_value in key_params:
-        user_input = input(f"{param_desc} [{default_value}]: ").strip()
+        sys.stdout.write(f"{param_desc} [{default_value}]: ")
+        sys.stdout.flush()
+        try:
+            line = sys.stdin.readline()
+        except EOFError:
+            line = ""
+        # readline() returns "" on EOF (non-TTY / piped stdin)
+        if not line:
+            print(f"  Non-interactive mode, using default: {default_value}")
+            style_config[param_name] = default_value
+            continue
+        user_input = line.strip()
 
         if user_input.lower() == 'done':
             break

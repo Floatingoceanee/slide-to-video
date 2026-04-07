@@ -12,6 +12,7 @@ import concurrent.futures
 
 import json
 import os
+import sys
 import logging
 from typing import List, Optional
 
@@ -339,7 +340,7 @@ class Project:
             return [item.content for item in self.script_items if not item.cached]
         return [item.content for item in self.script_items]
 
-    def prompt_user_confirmation(self, proofread_srt_path: str) -> bool:
+    def prompt_user_confirmation(self, proofread_srt_path: str, proofread_method: str = "vocabulary") -> bool:
         """
         Prompt user to check proofread subtitles.
 
@@ -356,6 +357,7 @@ class Project:
         print("\n" + "=" * 60)
         print("Subtitle Proofreading Complete")
         print("=" * 60)
+        print(f"Method: {proofread_method}")
         print(f"\nProofread subtitle file saved to:")
         print(f"  {proofread_srt_path}")
         print("\nPlease review the file to verify corrections.")
@@ -363,7 +365,17 @@ class Project:
         print("=" * 60)
 
         while True:
-            response = input("\nContinue with video generation? [Y/n]: ").strip().lower()
+            sys.stdout.write("\nContinue with video generation? [Y/n]: ")
+            sys.stdout.flush()
+            try:
+                line = sys.stdin.readline()
+            except EOFError:
+                line = ""
+            # readline() returns "" on EOF (non-TTY / piped stdin)
+            response = line.strip().lower()
+            if not line:
+                print("Non-interactive mode detected, continuing...")
+                return True
             if response in ['y', 'yes', '']:
                 return True
             elif response in ['n', 'no']:
@@ -437,10 +449,11 @@ class Project:
 
         # Proofread the merged SRT
         proofread_srt_path = f"{self.output_dir}/subtitles_merged_proofread.srt"
-        proofread_method = self.config.get("proofread", {}).get("method", "vocabulary")
+        requested_method = self.config.get("proofread", {}).get("method", "vocabulary")
+        proofread_method = requested_method  # will be updated if fallback occurs
 
         try:
-            if proofread_method == "llm":
+            if requested_method == "llm":
                 # LLM-based proofreading
                 llm_config = self.config.get("proofread", {}).get("llm", {})
                 from .proofread import proofread_srt_with_llm
@@ -461,15 +474,31 @@ class Project:
                 )
             print(f"Proofread subtitles saved to: {proofread_srt_path}")
         except Exception as e:
-            logger.warning(f"Proofreading failed, using original subtitles: {e}")
-            proofread_srt_path = merged_srt_path
+            if requested_method == "llm":
+                logger.warning(f"LLM proofreading failed, falling back to vocabulary method: {e}")
+                proofread_method = "vocabulary (fallback)"
+                try:
+                    proofread_srt(
+                        srt_path=merged_srt_path,
+                        script_path=self.script,
+                        output_path=proofread_srt_path
+                    )
+                    print(f"Proofread subtitles saved to: {proofread_srt_path}")
+                except Exception as e2:
+                    logger.warning(f"Vocabulary proofreading also failed, using original subtitles: {e2}")
+                    proofread_method = "none (original)"
+                    proofread_srt_path = merged_srt_path
+            else:
+                logger.warning(f"Proofreading failed, using original subtitles: {e}")
+                proofread_method = "none (original)"
+                proofread_srt_path = merged_srt_path
 
         # Check for interactive mode
         no_interactive = self.config.get("no_interactive", False)
         enable_interactive = self.config.get("enable_interactive", True)
 
         if enable_interactive and not no_interactive:
-            if not self.prompt_user_confirmation(proofread_srt_path):
+            if not self.prompt_user_confirmation(proofread_srt_path, proofread_method):
                 raise RuntimeError("User cancelled the process")
 
         # Get subtitle style for hard burn mode
